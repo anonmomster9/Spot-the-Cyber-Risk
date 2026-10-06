@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spot the Cyber Risk</title>
+<style>
+:root{--navy:#003b5c;--red:#d71920;--green:#00a651;--ink:#102a43;--pale:#eef7f7;--orange:#ff5a00}
+*{box-sizing:border-box} body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#eef7f7,#fff);color:var(--ink)}
+header{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:14px 22px;background:var(--navy);color:#fff;position:sticky;top:0;z-index:5}
+h1{font-size:clamp(20px,3vw,34px);margin:0}.sub{opacity:.9}.stats{display:flex;gap:14px;align-items:center;font-weight:700}.timer{font-variant-numeric:tabular-nums;background:#fff;color:var(--navy);padding:8px 12px;border-radius:999px}
+main{max-width:1500px;margin:auto;padding:18px}.panel{background:#fff;border-radius:16px;box-shadow:0 8px 28px #003b5c22;padding:18px;margin-bottom:16px}
+.start{max-width:620px;margin:45px auto}.field{display:grid;gap:6px;margin:12px 0}input{font:inherit;padding:12px;border:1px solid #9fb3c8;border-radius:9px}button{font:inherit;font-weight:700;padding:11px 16px;border:0;border-radius:9px;background:var(--red);color:#fff;cursor:pointer}button.secondary{background:var(--navy)}button:disabled{opacity:.55;cursor:not-allowed}
+.game-wrap{position:relative;width:100%;line-height:0;overflow:hidden;border-radius:12px;background:#b8d8d5}.game-wrap img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}.hotspot{position:absolute;transform:translate(-50%,-50%);width:4.8%;aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:transparent;cursor:crosshair}.hotspot.found{border-color:var(--orange);background:#ff5a0022;box-shadow:0 0 0 4px #fff8}.hotspot.found:after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:var(--orange);font:bold 2vw Segoe UI;line-height:1}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:12px 18px;background:#102a43;color:#fff;border-radius:10px;z-index:10;display:none}.hidden{display:none!important}.leaderboard{width:100%;border-collapse:collapse}.leaderboard th,.leaderboard td{padding:10px;border-bottom:1px solid #d9e2ec;text-align:left}.leaderboard th{background:var(--navy);color:#fff}.status{padding:10px;border-radius:9px;background:#fff3cd;color:#6b4f00;margin:10px 0}.complete{text-align:center;padding:30px}.complete strong{font-size:42px;color:var(--green)}
+@media(max-width:700px){header{align-items:flex-start;flex-direction:column}.stats{width:100%;justify-content:space-between}.hotspot{width:7%}}
+</style></head><body>
+<header><div><h1>Spot the Cyber Risk</h1><div class="sub">Find all 10 scams and risky cyber hygiene habits as quickly as possible.</div></div><div class="stats"><span id="progress">0 / 10 found</span><span class="timer" id="timer">00:00.00</span></div></header>
+<main>
+<section class="panel start" id="startPanel"><h2>Ready to play?</h2><p>Enter your work email. Each email can participate once. The timer starts when you select <b>Start game</b>.</p><div class="field"><label for="name">Display name</label><input id="name" autocomplete="name" maxlength="80" required></div><div class="field"><label for="email">Work email</label><input id="email" type="email" autocomplete="email" maxlength="160" required></div><label><input id="consent" type="checkbox"> I understand my email, result and timing will be recorded for the leaderboard.</label><div style="margin-top:16px"><button id="startBtn">Start game</button></div><div class="status hidden" id="setupNotice"></div></section>
+<section class="panel hidden" id="gamePanel"><p><b>How to play:</b> Select each risky item in the scene. A marker appears for correct finds. Selecting elsewhere does not add a penalty. The session closes after 60 seconds without activity.</p><div class="game-wrap" id="gameWrap"><img src="CSW_TeamsBackground_Screensaver.jpg" alt="Busy office scene containing hidden cyber security risks" id="gameImage"></div></section>
+<section class="panel hidden complete" id="completePanel"><h2 id="resultTitle">Completed</h2><p id="resultText"></p><strong id="finalTime"></strong><div style="margin-top:20px"><button class="secondary" id="leaderBtn">View leaderboard</button></div></section>
+<section class="panel hidden" id="leaderPanel"><h2>Leaderboard</h2><p>Fastest valid completions are ranked first.</p><table class="leaderboard"><thead><tr><th>Rank</th><th>Name</th><th>Time</th></tr></thead><tbody id="leaderBody"><tr><td colspan="3">No completed results yet.</td></tr></tbody></table></section>
+</main><div class="toast" id="toast"></div>
+<script>
+const CONFIG={inactivityMs:60000,total:10};
+// ---- Supabase settings ----
+const SUPABASE_URL='https://oaumbxldpdrthmbndkmu.supabase.co';
+const SUPABASE_KEY='PASTE_YOUR_PUBLISHABLE_KEY_HERE'; // Publishable (anon) key ONLY. Never the secret / service_role key.
+const TABLE_URL=SUPABASE_URL+'/rest/v1/'+encodeURIComponent('Cyber Risk Leaderboard');
+const sbReady=()=>SUPABASE_KEY&&!SUPABASE_KEY.startsWith('PASTE_');
+function sbHeaders(extra){const h={apikey:SUPABASE_KEY};if(SUPABASE_KEY.startsWith('eyJ'))h.Authorization='Bearer '+SUPABASE_KEY;return Object.assign(h,extra||{})}
+const targets=[
+ {id:'payroll-sharing',x:14.2,y:6.9},{id:'unlocked-chat',x:76.8,y:10.5},{id:'suspicious-screen',x:88.6,y:28.8},{id:'visible-password',x:95.0,y:23.3},{id:'remote-monitoring',x:34.4,y:43.0},{id:'exposed-documents',x:51.8,y:57.3},{id:'social-media',x:31.8,y:64.2},{id:'updates-off',x:45.8,y:76.1},{id:'unattended-access',x:72.2,y:75.4},{id:'malicious-qr',x:95.8,y:83.8}
+];
+let state={started:false,ended:false,found:new Set(),startPerf:0,startUTC:'',lastActivity:0,raf:0,sessionId:''};
+const $=id=>document.getElementById(id), gameWrap=$('gameWrap');
+function toast(s){const t=$('toast');t.textContent=s;t.style.display='block';clearTimeout(t._x);t._x=setTimeout(()=>t.style.display='none',1400)}
+function fmt(ms){let cs=Math.floor(ms/10)%100,s=Math.floor(ms/1000)%60,m=Math.floor(ms/60000);return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`}
+function tick(){if(!state.started||state.ended)return;let elapsed=performance.now()-state.startPerf;$('timer').textContent=fmt(elapsed);if(performance.now()-state.lastActivity>=CONFIG.inactivityMs){finish('timed_out')}else state.raf=requestAnimationFrame(tick)}
+function activity(){if(state.started&&!state.ended)state.lastActivity=performance.now()}
+['pointerdown','pointermove','keydown','touchstart','scroll'].forEach(e=>window.addEventListener(e,activity,{passive:true}));
+for(const t of targets){const b=document.createElement('button');b.className='hotspot';b.style.left=t.x+'%';b.style.top=t.y+'%';b.setAttribute('aria-label','Possible cyber risk');b.dataset.id=t.id;b.onclick=()=>found(t,b);gameWrap.appendChild(b)}
+function found(t,b){if(state.ended||state.found.has(t.id))return;state.found.add(t.id);b.classList.add('found');b.disabled=true;$('progress').textContent=`${state.found.size} / ${CONFIG.total} found`;toast('Correct find');if(state.found.size===CONFIG.total)finish('completed')}
+async function start(){const email=$('email').value.trim().toLowerCase(),name=$('name').value.trim();if(!name||!/^\S+@\S+\.\S+$/.test(email)||!$('consent').checked){toast('Add your name, valid email and consent');return}if(localStorage.getItem('cyberGameAttempt:'+email)){toast('This email has already participated on this device');return}
+ state={...state,started:true,ended:false,found:new Set(),startPerf:performance.now(),startUTC:new Date().toISOString(),lastActivity:performance.now(),sessionId:crypto.randomUUID()};localStorage.setItem('cyberGameAttempt:'+email,'started');$('startPanel').classList.add('hidden');$('gamePanel').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'});tick()}
+async function finish(status){
+ if(state.ended)return;state.ended=true;cancelAnimationFrame(state.raf);
+ const duration=Math.max(0,(performance.now()-state.startPerf)/1000),email=$('email').value.trim().toLowerCase(),name=$('name').value.trim();
+ const durationDisplay=fmt(duration*1000);
+ let saved=false,duplicate=false;
+ try{
+  if(!sbReady())throw new Error('Supabase key not set');
+  const r=await fetch(TABLE_URL,{method:'POST',headers:sbHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),body:JSON.stringify({
+   'Email':email,'Display Name':name,'Start Time':state.startUTC,'End Time':new Date().toISOString(),
+   'Duration_Sec':+duration.toFixed(2),'status':status,'Session id':state.sessionId})});
+  if(r.status===409)duplicate=true;
+  else if(!r.ok)throw new Error('Save failed ('+r.status+')');
+  else saved=true;
+ }catch(e){console.error(e)}
+ localStorage.setItem('cyberGameAttempt:'+email,duplicate?'duplicate':status);
+ $('gamePanel').classList.add('hidden');$('completePanel').classList.remove('hidden');
+ if(duplicate){$('resultTitle').textContent='Entry already recorded';$('resultText').textContent='This email has already used its one attempt, so this result was not added to the leaderboard.'}
+ else{
+  $('resultTitle').textContent=status==='completed'?'All 10 found!':'Session ended due to inactivity';
+  $('resultText').textContent=saved?(status==='completed'?'Your completion and timing were recorded.':'No activity was detected for 60 seconds. Your partial result and timing were recorded.'):'The session ended, but the result could not be saved. Contact the game organiser.';
+ }
+ $('finalTime').textContent=durationDisplay;
+ await loadLeaderboard();
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+async function loadLeaderboard(){
+ if(!sbReady())return;
+ try{
+  const url=TABLE_URL+'?select='+encodeURIComponent('"Display Name",Duration_Sec')+'&status=eq.completed&order=Duration_Sec.asc&limit=20';
+  const r=await fetch(url,{headers:sbHeaders()});
+  if(!r.ok)throw new Error('Leaderboard load failed ('+r.status+')');
+  const rows=await r.json();
+  renderLeaderboard(rows.map(x=>({displayName:x['Display Name'],durationSeconds:Number(x.Duration_Sec)})));
+ }catch(e){console.error(e);const td=document.querySelector('#leaderBody td');if(td)td.textContent='Leaderboard could not be loaded right now.'}
+}
+function renderLeaderboard(rows){if(!rows.length)return;const body=$('leaderBody');body.innerHTML='';rows.forEach((r,i)=>{const tr=document.createElement('tr');for(const v of [i+1,r.displayName||'Participant',r.durationDisplay||fmt((r.durationSeconds||0)*1000)]){const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}body.appendChild(tr)})}
+$('startBtn').onclick=start;$('leaderBtn').onclick=async()=>{$('leaderPanel').classList.remove('hidden');$('leaderPanel').scrollIntoView({behavior:'smooth'});await loadLeaderboard()};
+if(!sbReady()){const n=$('setupNotice');n.classList.remove('hidden');n.textContent='Setup needed: paste your Supabase publishable key into SUPABASE_KEY in index.html. Results cannot be saved until then.'}
+</script></body></html>
