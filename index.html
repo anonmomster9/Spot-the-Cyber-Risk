@@ -23,7 +23,7 @@ main{max-width:1500px;margin:auto;padding:18px}.panel{background:#fff;border-rad
 const CONFIG={inactivityMs:60000,total:10};
 // ---- Supabase settings ----
 const SUPABASE_URL='https://oaumbxldpdrthmbndkmu.supabase.co';
-const SUPABASE_KEY='PASTE_YOUR_PUBLISHABLE_KEY_HERE'; // Publishable (anon) key ONLY. Never the secret / service_role key.
+const SUPABASE_KEY='sb_publishable_DHjtgyJ6hhh3aqWTLiolQg_ypRP6P1k'; // Publishable (anon) key ONLY. Never the secret / service_role key.
 const TABLE_URL=SUPABASE_URL+'/rest/v1/'+encodeURIComponent('Cyber Risk Leaderboard');
 const sbReady=()=>SUPABASE_KEY&&!SUPABASE_KEY.startsWith('PASTE_');
 function sbHeaders(extra){const h={apikey:SUPABASE_KEY};if(SUPABASE_KEY.startsWith('eyJ'))h.Authorization='Bearer '+SUPABASE_KEY;return Object.assign(h,extra||{})}
